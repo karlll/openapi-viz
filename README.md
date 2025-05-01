@@ -1,10 +1,14 @@
 # OpenAPI Visualization Tool
 
-A tool for visualizing OpenAPI schemas as interactive graphs.
+A tool for visualizing OpenAPI schemas as graphs.
+
+## Example
+![Example based on the OpenAPI Pet store schema](https://raw.githubusercontent.com/karlll/openapi-viz/main/sample.png)
+
 
 ## Features
 
-- Visualizes OpenAPI schemas as interactive graphs
+- Visualizes OpenAPI schemas as graphs
 - Supports different types of schema components:
   - Simple types (string, integer, boolean, etc.)
   - Array types
@@ -23,30 +27,68 @@ A tool for visualizing OpenAPI schemas as interactive graphs.
 
 2. Install dependencies:
    ```bash
-   pip install -e .
+   uv install -e .
    ```
 
 3. For development, install development dependencies:
    ```bash
-   pip install -e ".[dev]"
+   uv install -e ".[dev]"
    ```
 
 ## Usage
 
+Basic usage:
+
 ```bash
-python openapi-viz.py
+python openapi-viz.py /path/to/your/openapi.yaml
 ```
 
-By default, the tool will look for a file named `bundled.yaml` in the current directory and generate an SVG file named `api_graph.svg`.
+This will generate a graph visualization of the OpenAPI schema and save it as `api_graph.svg`.
 
-You can modify the input and output paths in the script:
+Specify a custom output filename:
+
+```bash
+python openapi-viz.py /path/to/your/openapi.yaml -o custom_output
+```
+
+This will save the graph as `custom_output.svg`.
+
+### Command Line Options
+
+```
+usage: openapi-viz.py [-h] [-o OUTPUT] input_file
+
+Generate a graph visualization of an OpenAPI schema.
+
+positional arguments:
+  input_file            Path to the OpenAPI schema file (YAML or JSON)
+
+options:
+  -h, --help            show this help message and exit
+  -o OUTPUT, --output OUTPUT
+                        Output file name (without extension, default: api_graph)
+```
+
+### Programmatic Usage
+
+You can also use the `OpenAPIGraphGenerator` class directly in your Python code:
 
 ```python
-if __name__ == "__main__":
-    generator = OpenAPIGraphGenerator('./path/to/your/openapi.yaml')
-    graph = generator.generate_graph()
-    generator.save('output_filename')
-    print(f"Graph saved to output_filename.svg")
+# If you have the script in your project
+from openapi_viz import OpenAPIGraphGenerator
+
+# Or import it from a file path
+import importlib.util
+spec = importlib.util.spec_from_file_location("openapi_viz", "/path/to/openapi-viz.py")
+openapi_viz = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(openapi_viz)
+OpenAPIGraphGenerator = openapi_viz.OpenAPIGraphGenerator
+
+# Then use it
+generator = OpenAPIGraphGenerator('/path/to/your/openapi.yaml')
+graph = generator.generate_graph()
+generator.save('output_filename')
+print(f"Graph saved to output_filename.svg")
 ```
 
 ## Testing
@@ -62,20 +104,6 @@ For test coverage report:
 ```bash
 pytest --cov=.
 ```
-
-## How It Works
-
-The tool processes the OpenAPI schema and creates a graph representation:
-
-1. Each schema component becomes a node in the graph
-2. References between components become edges in the graph
-3. Different types of components are visualized differently:
-   - Simple types: Show the type name and type
-   - Array types: Show the type name and array item type, with an edge to the item type
-   - Object types: Show the type name and properties as a table, with edges to referenced types
-   - Reference types: Show the type name and a reference edge to the target type
-   - AnyOf types: Show the type name and all possible types, with edges to each type
-
 ## License
 
 [MIT](LICENSE)

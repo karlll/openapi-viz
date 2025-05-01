@@ -1,6 +1,9 @@
+# This script generates a GraphViz representation of an OpenAPI schema.
+# MIT License, 2025, Karl Larsaeus <karl@ninjacontrol.com>
 
 import json
 import yaml
+import argparse
 from graphviz import Digraph
 
 class OpenAPIGraphGenerator:
@@ -63,46 +66,52 @@ class OpenAPIGraphGenerator:
 
         for prop_name, prop_details in properties.items():
             prop_type = self._get_property_type_label(prop_details)
-            table += f"<TR><TD>{prop_name}</TD><TD>{prop_type}</TD></TR>"
+            port_name = f"port_{prop_name}"
+
+            # Add PORT attribute to the type cell for properties that reference other types
+            if '$ref' in prop_details or 'anyOf' in prop_details or (prop_details.get('type') == 'array' and 'items' in prop_details) or (prop_details.get('type') == 'object' and 'properties' in prop_details):
+                table += f"<TR><TD>{prop_name}</TD><TD PORT=\"{port_name}\">{prop_type}</TD></TR>"
+            else:
+                table += f"<TR><TD>{prop_name}</TD><TD>{prop_type}</TD></TR>"
 
             # Create edges for array and object properties
             if '$ref' in prop_details:
                 ref_type = prop_details['$ref'].split('/')[-1]
                 ref_id = f"schema_{ref_type}"
-                graph.edge(parent_id, ref_id, label=prop_name)
+                graph.edge(f"{parent_id}:{port_name}", ref_id, label=prop_name)
             elif 'anyOf' in prop_details:
                 # Handle anyOf in properties
                 for i, item in enumerate(prop_details['anyOf']):
                     if '$ref' in item:
                         ref_type = item['$ref'].split('/')[-1]
                         ref_id = f"schema_{ref_type}"
-                        graph.edge(parent_id, ref_id, label=f"{prop_name} (anyOf[{i}])")
+                        graph.edge(f"{parent_id}:{port_name}", ref_id, label=f"{prop_name} (anyOf[{i}])")
                     elif 'type' in item and item['type'] == 'object' and 'properties' in item:
                         # Handle inline object definitions in anyOf
                         nested_id = f"{parent_id}_{prop_name}_anyOf_{i}"
                         self._process_type(f"{prop_name} anyOf {i}", 
                                            {'type': 'object', 'properties': item['properties']}, 
                                            nested_id, graph)
-                        graph.edge(parent_id, nested_id, label=f"{prop_name} (anyOf[{i}])")
+                        graph.edge(f"{parent_id}:{port_name}", nested_id, label=f"{prop_name} (anyOf[{i}])")
             elif prop_details.get('type') == 'array' and 'items' in prop_details:
                 if '$ref' in prop_details['items']:
                     ref_type = prop_details['items']['$ref'].split('/')[-1]
                     ref_id = f"schema_{ref_type}"
-                    graph.edge(parent_id, ref_id, label=f"{prop_name} (array)")
+                    graph.edge(f"{parent_id}:{port_name}", ref_id, label=f"{prop_name} (array)")
                 elif 'anyOf' in prop_details['items']:
                     # Handle anyOf in array items
                     for i, item in enumerate(prop_details['items']['anyOf']):
                         if '$ref' in item:
                             ref_type = item['$ref'].split('/')[-1]
                             ref_id = f"schema_{ref_type}"
-                            graph.edge(parent_id, ref_id, label=f"{prop_name} (array anyOf[{i}])")
+                            graph.edge(f"{parent_id}:{port_name}", ref_id, label=f"{prop_name} (array anyOf[{i}])")
                         elif 'type' in item and item['type'] == 'object' and 'properties' in item:
                             # Handle inline object definitions in anyOf
                             nested_id = f"{parent_id}_{prop_name}_array_anyOf_{i}"
                             self._process_type(f"{prop_name} array anyOf {i}", 
                                                {'type': 'object', 'properties': item['properties']}, 
                                                nested_id, graph)
-                            graph.edge(parent_id, nested_id, label=f"{prop_name} (array anyOf[{i}])")
+                            graph.edge(f"{parent_id}:{port_name}", nested_id, label=f"{prop_name} (array anyOf[{i}])")
                 elif 'type' in prop_details['items'] and prop_details['items']['type'] == 'object':
                     # Handle inline object definitions in array items
                     if 'properties' in prop_details['items']:
@@ -111,14 +120,14 @@ class OpenAPIGraphGenerator:
                         self._process_type(f"{prop_name} items", 
                                            {'type': 'object', 'properties': nested_props}, 
                                            nested_id, graph)
-                        graph.edge(parent_id, nested_id, label=f"{prop_name} (array)")
+                        graph.edge(f"{parent_id}:{port_name}", nested_id, label=f"{prop_name} (array)")
             elif prop_details.get('type') == 'object' and 'properties' in prop_details:
                 # Handle inline object definitions
                 nested_id = f"{parent_id}_{prop_name}"
                 self._process_type(f"{prop_name}", 
                                    {'type': 'object', 'properties': prop_details['properties']}, 
                                    nested_id, graph)
-                graph.edge(parent_id, nested_id, label=prop_name)
+                graph.edge(f"{parent_id}:{port_name}", nested_id, label=prop_name)
 
         table += "</TABLE>"
         return table
@@ -298,9 +307,15 @@ class OpenAPIGraphGenerator:
         self.graph.render(output_path, format="svg", cleanup=True)
 
 
-# Example usage
 if __name__ == "__main__":
-    generator = OpenAPIGraphGenerator('./bundled.yaml')
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Generate a graph visualization of an OpenAPI schema.')
+    parser.add_argument('input_file', help='Path to the OpenAPI schema file (YAML or JSON)')
+    parser.add_argument('-o', '--output', default='api_graph', help='Output file name (without extension, default: api_graph)')
+    args = parser.parse_args()
+
+    # Generate the graph
+    generator = OpenAPIGraphGenerator(args.input_file)
     graph = generator.generate_graph()
-    generator.save('api_graph')
-    print(f"Graph saved to api_graph.svg")
+    generator.save(args.output)
+    print(f"Graph saved to {args.output}.svg")

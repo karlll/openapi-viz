@@ -14,7 +14,7 @@ Based on [Swagger Petstore example](https://github.com/swagger-api/swagger-petst
 
 ![Interactive HTML Viewer](https://raw.githubusercontent.com/karlll/openapi-viz/main/viewer_sample.png)
 
-See [Interactive HTML Viewer](https://raw.githubusercontent.com/karlll/openapi-viz/main/viewer_sample.html)
+See [Interactive HTML Viewer example](https://karlll.github.io/openapi-viz/viewer_sample.html)
 
 Based on a [NASA OpenAPI spec](https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/nasa.gov/asteroids%20neows/3.4.0/openapi.yaml)
 

@@ -3,9 +3,21 @@
 A tool for visualizing OpenAPI schemas as graphs.
 
 ## Example
+
+### Simple SVG
+
 ![Example based on the OpenAPI Pet store schema](https://raw.githubusercontent.com/karlll/openapi-viz/main/sample.png)
 
 Based on [Swagger Petstore example](https://github.com/swagger-api/swagger-petstore/blob/master/src/main/resources/openapi.yaml)
+
+### Interactive HTML Viewer
+
+![Interactive HTML Viewer](https://raw.githubusercontent.com/karlll/openapi-viz/main/viewer_sample.png)
+
+See [Interactive HTML Viewer](https://raw.githubusercontent.com/karlll/openapi-viz/main/viewer_sample.html)
+
+Based on a [NASA OpenAPI spec](https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/nasa.gov/asteroids%20neows/3.4.0/openapi.yaml)
+
 ## Features
 
 - Visualizes OpenAPI schemas as graphs

@@ -16,6 +16,7 @@ Based on [Swagger Petstore example](https://github.com/swagger-api/swagger-petst
   - Reference types
   - AnyOf types (multiple possible types)
 - Generates SVG output for easy embedding in documentation
+- Provides an interactive HTML viewer for exploring the generated graphs
 
 ## Installation
 
@@ -53,10 +54,26 @@ python openapi-viz.py /path/to/your/openapi.yaml -o custom_output
 
 This will save the graph as `custom_output.svg`.
 
+Generate an HTML viewer for the graph:
+
+```bash
+python openapi-viz.py /path/to/your/openapi.yaml -v
+```
+
+This will generate an HTML file (`api_graph.html`) that embeds the SVG in an interactive viewer.
+
+You can also combine options:
+
+```bash
+python openapi-viz.py /path/to/your/openapi.yaml -o custom_output -v
+```
+
+This will save the graph as an HTML viewer at `custom_output.html`.
+
 ### Command Line Options
 
 ```
-usage: openapi-viz.py [-h] [-o OUTPUT] input_file
+usage: openapi-viz.py [-h] [-o OUTPUT] [-v] input_file
 
 Generate a graph visualization of an OpenAPI schema.
 
@@ -67,6 +84,7 @@ options:
   -h, --help            show this help message and exit
   -o OUTPUT, --output OUTPUT
                         Output file name (without extension, default: api_graph)
+  -v, --viewer          Embed the SVG in an HTML viewer
 ```
 
 ### Programmatic Usage
@@ -87,8 +105,14 @@ OpenAPIGraphGenerator = openapi_viz.OpenAPIGraphGenerator
 # Then use it
 generator = OpenAPIGraphGenerator('/path/to/your/openapi.yaml')
 graph = generator.generate_graph()
-generator.save('output_filename')
-print(f"Graph saved to output_filename.svg")
+
+# Save as SVG
+output_file = generator.save('output_filename')
+print(f"Graph saved to {output_file}")
+
+# Or save as HTML viewer
+output_file = generator.save('output_filename', use_viewer=True)
+print(f"Graph saved to {output_file} (HTML viewer)")
 ```
 
 ## Testing

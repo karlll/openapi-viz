@@ -302,9 +302,39 @@ class OpenAPIGraphGenerator:
     def _add_relationships(self):
         pass
 
-    def save(self, output_path):
-        """Save the graph to a file."""
+    def save(self, output_path, use_viewer=False):
+        """Save the graph to a file.
+
+        Args:
+            output_path: Path to save the output file (without extension)
+            use_viewer: If True, embed the SVG in an HTML viewer
+        """
         self.graph.render(output_path, format="svg", cleanup=True)
+
+        if use_viewer:
+            # Read the generated SVG file
+            svg_path = f"{output_path}.svg"
+            with open(svg_path, 'r') as f:
+                svg_content = f.read()
+
+            # Add id to the SVG element for the viewer's JavaScript
+            svg_content = svg_content.replace('<svg ', '<svg id="main-svg" ', 1)
+
+            # Read the HTML template
+            with open('viewer_template.html', 'r') as f:
+                html_template = f.read()
+
+            # Insert the SVG content into the template
+            html_content = html_template.replace('<!-- Insert SVG content -->', svg_content)
+
+            # Save the HTML file
+            html_path = f"{output_path}.html"
+            with open(html_path, 'w') as f:
+                f.write(html_content)
+
+            return html_path
+
+        return f"{output_path}.svg"
 
 
 if __name__ == "__main__":
@@ -312,10 +342,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate a graph visualization of an OpenAPI schema.')
     parser.add_argument('input_file', help='Path to the OpenAPI schema file (YAML or JSON)')
     parser.add_argument('-o', '--output', default='api_graph', help='Output file name (without extension, default: api_graph)')
+    parser.add_argument('-v', '--viewer', action='store_true', help='Embed the SVG in an HTML viewer')
     args = parser.parse_args()
 
     # Generate the graph
     generator = OpenAPIGraphGenerator(args.input_file)
     graph = generator.generate_graph()
-    generator.save(args.output)
-    print(f"Graph saved to {args.output}.svg")
+    output_file = generator.save(args.output, use_viewer=args.viewer)
+
+    if args.viewer:
+        print(f"Graph saved to {output_file} (HTML viewer)")
+    else:
+        print(f"Graph saved to {output_file}")

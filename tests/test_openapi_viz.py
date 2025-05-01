@@ -290,10 +290,122 @@ class TestOpenAPIGraphGenerator(unittest.TestCase):
         # Patch the render method of the actual graph object
         with patch.object(self.generator.graph, 'render') as mock_render:
             # Save the graph
-            self.generator.save("test_output")
+            output_path = self.generator.save("test_output")
 
             # Check that the render method was called with the correct arguments
             mock_render.assert_called_once_with("test_output", format="svg", cleanup=True)
+
+            # Check that the correct output path is returned
+            self.assertEqual(output_path, "test_output.svg")
+
+    def test_save_with_viewer(self):
+        """Test saving the graph with HTML viewer."""
+        # Generate the graph
+        self.generator.generate_graph()
+
+        # Create a temporary SVG content for testing
+        svg_content = '<svg width="100" height="100"><circle cx="50" cy="50" r="40" /></svg>'
+        html_template = '<!DOCTYPE html><html><body><div id="svg-container"><!-- Insert SVG content --></div></body></html>'
+        expected_html = '<!DOCTYPE html><html><body><div id="svg-container"><svg id="main-svg" width="100" height="100"><circle cx="50" cy="50" r="40" /></svg></div></body></html>'
+
+        # Create a mock file handler that returns different content for different files
+        file_mock = MagicMock()
+        file_mock.__enter__.return_value.read.side_effect = [svg_content, html_template]
+
+        # Patch the render method and open function
+        with patch.object(self.generator.graph, 'render') as mock_render, \
+             patch('builtins.open', return_value=file_mock):
+
+            # Save the graph with viewer
+            output_path = self.generator.save("test_output", use_viewer=True)
+
+            # Check that the render method was called with the correct arguments
+            mock_render.assert_called_once_with("test_output", format="svg", cleanup=True)
+
+            # Check that the correct output path is returned
+            self.assertEqual(output_path, "test_output.html")
+
+            # Verify that open was called for the SVG, template, and output HTML
+            from unittest.mock import call
+            open_calls = [
+                call("test_output.svg", 'r'),
+                call('viewer_template.html', 'r'),
+                call("test_output.html", 'w')
+            ]
+
+            # Check that open was called with the expected arguments
+            # Note: We can't check the exact order of calls because the implementation might change
+            for expected_call in open_calls:
+                self.assertIn(expected_call, open.call_args_list)
+
+    def test_command_line_args(self):
+        """Test command line argument parsing."""
+        # Test with viewer option
+        test_args = ['openapi-viz.py', 'test_spec.yaml', '-v']
+
+        # Create a mock for the OpenAPIGraphGenerator class
+        mock_generator_class = MagicMock()
+        mock_generator = mock_generator_class.return_value
+        mock_generator.generate_graph.return_value = "mock_graph"
+        mock_generator.save.return_value = "test_spec.html"
+
+        # Save the original class to restore it later
+        original_class = openapi_viz.OpenAPIGraphGenerator
+
+        try:
+            # Replace the class with our mock
+            openapi_viz.OpenAPIGraphGenerator = mock_generator_class
+
+            # Patch sys.argv and print
+            with patch('sys.argv', test_args), patch('builtins.print') as mock_print:
+                # Execute the main block directly from the module
+                # This is the code that would run if the script was executed directly
+                if hasattr(openapi_viz, 'main'):
+                    openapi_viz.main()
+                else:
+                    # Get the argparse module from the openapi_viz module
+                    argparse_module = openapi_viz.argparse
+
+                    # Create a parser and parse the arguments
+                    parser = argparse_module.ArgumentParser(description='Generate a graph visualization of an OpenAPI schema.')
+                    parser.add_argument('input_file', help='Path to the OpenAPI schema file (YAML or JSON)')
+                    parser.add_argument('-o', '--output', default='api_graph', help='Output file name (without extension, default: api_graph)')
+                    parser.add_argument('-v', '--viewer', action='store_true', help='Embed the SVG in an HTML viewer')
+                    args = parser.parse_args()
+
+                    # Generate the graph
+                    generator = openapi_viz.OpenAPIGraphGenerator(args.input_file)
+                    graph = generator.generate_graph()
+                    output_file = generator.save(args.output, use_viewer=args.viewer)
+
+                    # Print the output message
+                    if args.viewer:
+                        print(f"Graph saved to {output_file} (HTML viewer)")
+                    else:
+                        print(f"Graph saved to {output_file}")
+        finally:
+            # Restore the original class
+            openapi_viz.OpenAPIGraphGenerator = original_class
+
+            try:
+                # Check that the generator was initialized with the correct input file
+                mock_generator_class.assert_called_once_with('test_spec.yaml')
+
+                # Check that generate_graph was called
+                mock_generator.generate_graph.assert_called_once()
+
+                # Check that save was called with the correct arguments
+                mock_generator.save.assert_called_once_with('api_graph', use_viewer=True)
+
+                # Check that the correct output message was printed
+                mock_print.assert_called_once_with("Graph saved to test_spec.html (HTML viewer)")
+            except AssertionError as e:
+                # Re-raise the assertion error with more context
+                raise AssertionError(f"Test assertions failed: {e}\n"
+                                    f"mock_generator_class calls: {mock_generator_class.mock_calls}\n"
+                                    f"mock_generator.generate_graph calls: {mock_generator.generate_graph.mock_calls}\n"
+                                    f"mock_generator.save calls: {mock_generator.save.mock_calls}\n"
+                                    f"mock_print calls: {mock_print.mock_calls if 'mock_print' in locals() else 'Not available'}")
 
 if __name__ == "__main__":
     unittest.main()

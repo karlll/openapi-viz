@@ -70,25 +70,53 @@ class OpenAPIGraphGenerator:
                 ref_type = prop_details['$ref'].split('/')[-1]
                 ref_id = f"schema_{ref_type}"
                 graph.edge(parent_id, ref_id, label=prop_name)
+            elif 'anyOf' in prop_details:
+                # Handle anyOf in properties
+                for i, item in enumerate(prop_details['anyOf']):
+                    if '$ref' in item:
+                        ref_type = item['$ref'].split('/')[-1]
+                        ref_id = f"schema_{ref_type}"
+                        graph.edge(parent_id, ref_id, label=f"{prop_name} (anyOf[{i}])")
+                    elif 'type' in item and item['type'] == 'object' and 'properties' in item:
+                        # Handle inline object definitions in anyOf
+                        nested_id = f"{parent_id}_{prop_name}_anyOf_{i}"
+                        self._process_type(f"{prop_name} anyOf {i}", 
+                                           {'type': 'object', 'properties': item['properties']}, 
+                                           nested_id, graph)
+                        graph.edge(parent_id, nested_id, label=f"{prop_name} (anyOf[{i}])")
             elif prop_details.get('type') == 'array' and 'items' in prop_details:
                 if '$ref' in prop_details['items']:
                     ref_type = prop_details['items']['$ref'].split('/')[-1]
                     ref_id = f"schema_{ref_type}"
                     graph.edge(parent_id, ref_id, label=f"{prop_name} (array)")
+                elif 'anyOf' in prop_details['items']:
+                    # Handle anyOf in array items
+                    for i, item in enumerate(prop_details['items']['anyOf']):
+                        if '$ref' in item:
+                            ref_type = item['$ref'].split('/')[-1]
+                            ref_id = f"schema_{ref_type}"
+                            graph.edge(parent_id, ref_id, label=f"{prop_name} (array anyOf[{i}])")
+                        elif 'type' in item and item['type'] == 'object' and 'properties' in item:
+                            # Handle inline object definitions in anyOf
+                            nested_id = f"{parent_id}_{prop_name}_array_anyOf_{i}"
+                            self._process_type(f"{prop_name} array anyOf {i}", 
+                                               {'type': 'object', 'properties': item['properties']}, 
+                                               nested_id, graph)
+                            graph.edge(parent_id, nested_id, label=f"{prop_name} (array anyOf[{i}])")
                 elif 'type' in prop_details['items'] and prop_details['items']['type'] == 'object':
                     # Handle inline object definitions in array items
                     if 'properties' in prop_details['items']:
                         nested_id = f"{parent_id}_{prop_name}_items"
                         nested_props = prop_details['items']['properties']
-                        self._process_type(f"{prop_name} items",
-                                           {'type': 'object', 'properties': nested_props},
+                        self._process_type(f"{prop_name} items", 
+                                           {'type': 'object', 'properties': nested_props}, 
                                            nested_id, graph)
                         graph.edge(parent_id, nested_id, label=f"{prop_name} (array)")
             elif prop_details.get('type') == 'object' and 'properties' in prop_details:
                 # Handle inline object definitions
                 nested_id = f"{parent_id}_{prop_name}"
-                self._process_type(f"{prop_name}",
-                                   {'type': 'object', 'properties': prop_details['properties']},
+                self._process_type(f"{prop_name}", 
+                                   {'type': 'object', 'properties': prop_details['properties']}, 
                                    nested_id, graph)
                 graph.edge(parent_id, nested_id, label=prop_name)
 
@@ -100,6 +128,16 @@ class OpenAPIGraphGenerator:
         if '$ref' in prop_details:
             ref_type = prop_details['$ref'].split('/')[-1]
             return f"reference to {ref_type}"
+        elif 'anyOf' in prop_details:
+            types = []
+            for item in prop_details['anyOf']:
+                if '$ref' in item:
+                    types.append(item['$ref'].split('/')[-1])
+                elif 'type' in item:
+                    types.append(item['type'])
+                else:
+                    types.append("unknown")
+            return f"anyOf: {', '.join(types)}"
         elif 'type' in prop_details:
             prop_type = prop_details['type']
             if prop_type == 'array':
@@ -107,6 +145,16 @@ class OpenAPIGraphGenerator:
                     if '$ref' in prop_details['items']:
                         item_type = prop_details['items']['$ref'].split('/')[-1]
                         return f"array of {item_type}"
+                    elif 'anyOf' in prop_details['items']:
+                        types = []
+                        for item in prop_details['items']['anyOf']:
+                            if '$ref' in item:
+                                types.append(item['$ref'].split('/')[-1])
+                            elif 'type' in item:
+                                types.append(item['type'])
+                            else:
+                                types.append("unknown")
+                        return f"array of anyOf: {', '.join(types)}"
                     elif 'type' in prop_details['items']:
                         return f"array of {prop_details['items']['type']}"
                 return "array"
@@ -129,6 +177,31 @@ class OpenAPIGraphGenerator:
             label = f"<{schema_name}<BR/><FONT POINT-SIZE='10'>type: reference</FONT>>"
             graph.node(schema_id, label=label)
             graph.edge(schema_id, ref_id, label="references")
+            return
+
+        # Handle anyOf type
+        if 'anyOf' in schema:
+            types = []
+            for i, item in enumerate(schema['anyOf']):
+                if '$ref' in item:
+                    ref_type = item['$ref'].split('/')[-1]
+                    types.append(ref_type)
+                    ref_id = f"schema_{ref_type}"
+                    graph.edge(schema_id, ref_id, label=f"anyOf[{i}]")
+                elif 'type' in item:
+                    types.append(item['type'])
+                    # If it's an object with properties, process it
+                    if item['type'] == 'object' and 'properties' in item:
+                        anyof_id = f"{schema_id}_anyOf_{i}"
+                        self._process_type(f"{schema_name} anyOf {i}", 
+                                          {'type': 'object', 'properties': item['properties']}, 
+                                          anyof_id, graph)
+                        graph.edge(schema_id, anyof_id, label=f"anyOf[{i}]")
+                else:
+                    types.append("unknown")
+
+            label = f"<{schema_name}<BR/><FONT POINT-SIZE='10'>type: anyOf: {', '.join(types)}</FONT>>"
+            graph.node(schema_id, label=label)
             return
 
         # Handle different schema types
@@ -161,6 +234,29 @@ class OpenAPIGraphGenerator:
                     label = f"<{schema_name}<BR/><FONT POINT-SIZE='10'>type: array of {ref_type}</FONT>>"
                     graph.node(schema_id, label=label)
                     graph.edge(schema_id, ref_id, label="items")
+                elif 'anyOf' in items:
+                    # Handle anyOf in array items
+                    types = []
+                    for i, item in enumerate(items['anyOf']):
+                        if '$ref' in item:
+                            ref_type = item['$ref'].split('/')[-1]
+                            types.append(ref_type)
+                            ref_id = f"schema_{ref_type}"
+                            graph.edge(schema_id, ref_id, label=f"items anyOf[{i}]")
+                        elif 'type' in item:
+                            types.append(item['type'])
+                            # If it's an object with properties, process it
+                            if item['type'] == 'object' and 'properties' in item:
+                                anyof_id = f"{schema_id}_items_anyOf_{i}"
+                                self._process_type(f"{schema_name} items anyOf {i}", 
+                                                  {'type': 'object', 'properties': item['properties']}, 
+                                                  anyof_id, graph)
+                                graph.edge(schema_id, anyof_id, label=f"items anyOf[{i}]")
+                        else:
+                            types.append("unknown")
+
+                    label = f"<{schema_name}<BR/><FONT POINT-SIZE='10'>type: array of anyOf: {', '.join(types)}</FONT>>"
+                    graph.node(schema_id, label=label)
                 elif 'type' in items:
                     item_type = items['type']
                     label = f"<{schema_name}<BR/><FONT POINT-SIZE='10'>type: array of {item_type}</FONT>>"
@@ -169,9 +265,9 @@ class OpenAPIGraphGenerator:
                     # If array items are objects with properties, process them
                     if item_type == 'object' and 'properties' in items:
                         items_id = f"{schema_id}_items"
-                        self._process_type(f"{schema_name} items",
-                                           {'type': 'object', 'properties': items['properties']},
-                                           items_id, graph)
+                        self._process_type(f"{schema_name} items", 
+                                          {'type': 'object', 'properties': items['properties']}, 
+                                          items_id, graph)
                         graph.edge(schema_id, items_id, label="items")
                 else:
                     label = f"<{schema_name}<BR/><FONT POINT-SIZE='10'>type: array</FONT>>"

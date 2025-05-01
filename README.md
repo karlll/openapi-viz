@@ -5,7 +5,7 @@ A tool for visualizing OpenAPI schemas as graphs.
 ## Example
 ![Example based on the OpenAPI Pet store schema](https://raw.githubusercontent.com/karlll/openapi-viz/main/sample.png)
 
-
+Based on [Swagger Petstore example](https://github.com/swagger-api/swagger-petstore/blob/master/src/main/resources/openapi.yaml)
 ## Features
 
 - Visualizes OpenAPI schemas as graphs
@@ -21,7 +21,7 @@ A tool for visualizing OpenAPI schemas as graphs.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/openapi-viz.git
+   git clone https://github.com/karlll/openapi-viz.git
    cd openapi-viz
    ```
 

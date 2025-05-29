@@ -302,13 +302,19 @@ class OpenAPIGraphGenerator:
     def _add_relationships(self):
         pass
 
-    def save(self, output_path, use_viewer=False):
+    def save(self, output_path, use_viewer=False, as_dot=False):
         """Save the graph to a file.
 
         Args:
             output_path: Path to save the output file (without extension)
             use_viewer: If True, embed the SVG in an HTML viewer
+            as_dot: If True, export the graph in DOT format
         """
+        if as_dot:
+            dot_path = f"{output_path}.dot"
+            self.graph.save(dot_path)
+            return dot_path
+
         self.graph.render(output_path, format="svg", cleanup=True)
 
         if use_viewer:
@@ -343,14 +349,17 @@ if __name__ == "__main__":
     parser.add_argument('input_file', help='Path to the OpenAPI schema file (YAML or JSON)')
     parser.add_argument('-o', '--output', default='api_graph', help='Output file name (without extension, default: api_graph)')
     parser.add_argument('-v', '--viewer', action='store_true', help='Embed the SVG in an HTML viewer')
+    parser.add_argument('--dot', action='store_true', help='Export the graph in DOT format')
     args = parser.parse_args()
 
     # Generate the graph
     generator = OpenAPIGraphGenerator(args.input_file)
     graph = generator.generate_graph()
-    output_file = generator.save(args.output, use_viewer=args.viewer)
+    output_file = generator.save(args.output, use_viewer=args.viewer, as_dot=args.dot)
 
-    if args.viewer:
+    if args.dot:
+        print(f"Graph saved to {output_file} (DOT format)")
+    elif args.viewer:
         print(f"Graph saved to {output_file} (HTML viewer)")
     else:
         print(f"Graph saved to {output_file}")

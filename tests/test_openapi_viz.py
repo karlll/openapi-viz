@@ -407,5 +407,49 @@ class TestOpenAPIGraphGenerator(unittest.TestCase):
                                     f"mock_generator.save calls: {mock_generator.save.mock_calls}\n"
                                     f"mock_print calls: {mock_print.mock_calls if 'mock_print' in locals() else 'Not available'}")
 
+    def test_dot_command_line_option(self):
+        """Test command line --dot option for DOT export."""
+        test_args = ['openapi-viz.py', 'test_spec.yaml', '--dot']
+        mock_generator_class = MagicMock()
+        mock_generator = mock_generator_class.return_value
+        mock_generator.generate_graph.return_value = "mock_graph"
+        mock_generator.save.return_value = "api_graph.dot"
+        original_class = openapi_viz.OpenAPIGraphGenerator
+        try:
+            openapi_viz.OpenAPIGraphGenerator = mock_generator_class
+            with patch('sys.argv', test_args), patch('builtins.print') as mock_print:
+                if hasattr(openapi_viz, 'main'):
+                    openapi_viz.main()
+                else:
+                    argparse_module = openapi_viz.argparse
+                    parser = argparse_module.ArgumentParser(description='Generate a graph visualization of an OpenAPI schema.')
+                    parser.add_argument('input_file', help='Path to the OpenAPI schema file (YAML or JSON)')
+                    parser.add_argument('-o', '--output', default='api_graph', help='Output file name (without extension, default: api_graph)')
+                    parser.add_argument('-v', '--viewer', action='store_true', help='Embed the SVG in an HTML viewer')
+                    parser.add_argument('--dot', action='store_true', help='Export the graph in DOT format')
+                    args = parser.parse_args()
+                    generator = openapi_viz.OpenAPIGraphGenerator(args.input_file)
+                    graph = generator.generate_graph()
+                    output_file = generator.save(args.output, use_viewer=args.viewer, as_dot=args.dot)
+                    if args.dot:
+                        print(f"Graph saved to {output_file} (DOT format)")
+                    elif args.viewer:
+                        print(f"Graph saved to {output_file} (HTML viewer)")
+                    else:
+                        print(f"Graph saved to {output_file}")
+        finally:
+            openapi_viz.OpenAPIGraphGenerator = original_class
+            try:
+                mock_generator_class.assert_called_once_with('test_spec.yaml')
+                mock_generator.generate_graph.assert_called_once()
+                mock_generator.save.assert_called_once_with('api_graph', use_viewer=False, as_dot=True)
+                mock_print.assert_called_once_with("Graph saved to api_graph.dot (DOT format)")
+            except AssertionError as e:
+                raise AssertionError(f"Test assertions failed: {e}\n"
+                                    f"mock_generator_class calls: {mock_generator_class.mock_calls}\n"
+                                    f"mock_generator.generate_graph calls: {mock_generator.generate_graph.mock_calls}\n"
+                                    f"mock_generator.save calls: {mock_generator.save.mock_calls}\n"
+                                    f"mock_print calls: {mock_print.mock_calls if 'mock_print' in locals() else 'Not available'}")
+
 if __name__ == "__main__":
     unittest.main()

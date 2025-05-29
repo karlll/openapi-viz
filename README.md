@@ -82,10 +82,18 @@ python openapi-viz.py /path/to/your/openapi.yaml -o custom_output -v
 
 This will save the graph as an HTML viewer at `custom_output.html`.
 
+Generate a DOT file for the graph:
+
+```bash
+python openapi-viz.py /path/to/your/openapi.yaml --dot
+```
+
+This will generate a DOT file (`api_graph.dot`) representing the graph structure.
+
 ### Command Line Options
 
 ```
-usage: openapi-viz.py [-h] [-o OUTPUT] [-v] input_file
+usage: openapi-viz.py [-h] [-o OUTPUT] [-v] [--dot] input_file
 
 Generate a graph visualization of an OpenAPI schema.
 
@@ -97,6 +105,7 @@ options:
   -o OUTPUT, --output OUTPUT
                         Output file name (without extension, default: api_graph)
   -v, --viewer          Embed the SVG in an HTML viewer
+  --dot                 Export the graph in DOT format
 ```
 
 ### Programmatic Usage
